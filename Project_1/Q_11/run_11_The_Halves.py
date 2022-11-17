@@ -5,8 +5,8 @@ filename = r"Dataset.csv"
 N = 50
 n = 2
 m = 1
-rho = 3.3758055537366024e-05
-seed = 1883300 
+rho = 1e-05
+seed = 1883300
 position_label = 2 # position of the label in the csv
 size_train = 186
 

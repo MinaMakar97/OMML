@@ -33,19 +33,20 @@ def create_W(N, n, seedd, start, end):
     np.random.seed(seedd)
     return np.random.uniform(start, end,size=(N, n + 1))
 
-def train(x_train, y_train, N, n, m, seed, rho):
+def train(x_train, y_train, N, n, m, seed, rho, start, end):
         
     # generate W and V
-    W = create_W(N, n, seed, 0, 1)
+    W = create_W(N, n, seed, start, end)
     V = create_V(m, N, seed, 0, 1)
     G_train = transform_G(W, x_train)
     
     # find best parameter
     start_time = time.time()
     Q, C = quadratic_convex(G_train, V, y_train, len(y_train), rho)
-    end = time.time() - start_time 
+    
 
     V_new = sc.linalg.lstsq(Q, C)[0]
+    end = time.time() - start_time 
     V_optimized = V_new.T
     y_train_pred = feedforward(G_train, V_optimized)
     

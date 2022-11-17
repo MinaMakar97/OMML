@@ -155,78 +155,55 @@ def gradient(omega, args):
 
 
 
-####### MODIFIED SKLEARN TO DID THE K-FOLD CROSS VALIDATION ##########
+def CrossValidation(k, params):
+    x, N, m, n, rho, start, end, seed, y = params
+    W = input_hidden_weights(N, n, seed, start, end)
+    V = hidden_output_weights(m, N, seed, start, end)
+    p = x.shape[1]
+    index_range = np.arange(p)
+    index_range = index_range.reshape(k,int(p/k))
+    list_loss = []
+    list_scoring_train = []
+    list_scoring_val = []
+    list_loss_val = []
+    omega_size = W.shape[0] * W.shape[1] + V.shape[1]
+    omega = np.vstack([W.reshape(-1,1), V.reshape(-1,1)])
+    for i in range(k):
+        x_val = x[:,index_range[i]]
+        x_train = x[:, np.delete(index_range, i, axis=0).flatten()]
+        y_train = y[np.delete(index_range, i, axis=0).flatten()]
+        y_val = y[index_range[i]]
+        args = [W.shape[0], W.shape[1], V.shape[0],V.shape[1], x_train, rho, y_train.reshape(-1,1) , N, True ]
 
-from sklearn.base import *
-from sklearn.ensemble import *
-import sys
-
-
-class ResampledEnsemble2(BaseEstimator):
-    def __init__(self, N=100, m=None, n=None, rho=None, seed=1804475, W=None, V= None, start=-1, end=1, bool_reg=True):
-        self._estimator_type = "Predictor"
-        self.N = N
-        self.m = m
-        self.n = n
-        self.rho = rho
-        self.seed = seed
-        self.W = W
-        self.V = V
-        self.loss = 0
-        self.start = start
-        self.end = end
-        self.bool_reg = bool_reg
-        #self.sigma = sigma
-
-    def fit(self, X, y):
-        W = input_hidden_weights(self.N, self.n, self.seed, self.start, self.end)
-        V = hidden_output_weights(self.m, self.N, self.seed, self.start, self.end)
-        X = X.T
-        args = [W.shape[0], W.shape[1], V.shape[0],V.shape[1], X, self.rho, y , self.N, True ]
-        omega = np.vstack([W.reshape(-1,1), V.reshape(-1,1)])
-        args[-1] = self.bool_reg
         omega_opt = sc.optimize.minimize(loss, omega, args=args, method='BFGS', jac=gradient, tol=0.0001, options={"maxiter":3000})['x']
-        self.W = omega_opt[: W.shape[0] * W.shape[1]].reshape(W.shape[0], W.shape[1])
-        self.V = omega_opt[W.shape[0] * W.shape[1]: ].reshape(V.shape[0], V.shape[1])
-        self.score(X, y)
-        return self
-        
 
-    def set_params(self, **params):
-        if not params:
-            return self
+        new_W = omega_opt[: W.shape[0] * W.shape[1]].reshape(W.shape[0], W.shape[1])
+        new_V = omega_opt[W.shape[0] * W.shape[1]: ].reshape(V.shape[0], V.shape[1])
 
-        for key, value in params.items():
-            if hasattr(self, key):
-                setattr(self, key, value)
-            else:
-                self.kwargs[key] = value      
-        return self
+        y_pred = feedforward(x_train, new_W, new_V)
+        y_pred_val = feedforward(x_val, new_W, new_V)
 
-    def predict(self, X):
-        return feedforward(X, self.W, self.V )
+        list_scoring_train.append(score(y_pred, y_train))
+        list_loss.append(loss(omega_opt, args))
 
-    def score(self, X, y):
-        global  best_loss, best_rho, best_N, losses_val, losses_train, avg_loss_batch
-        val = False
-        if X.shape[0] != 3: # validation
-            X = X.T # di default sklearn è stupido
-            val = True
-            losses_train.append(np.mean(np.array(avg_loss_batch)))
-            avg_loss_batch = []
-        else:
-            pred_cap = self.predict(X)
-            self.loss = np.sum((pred_cap.reshape(len(y),) - y)**2) / (2*len(y))
-            avg_loss_batch.append(self.loss)
-        pred_cap = self.predict(X)
-        ris = np.sum((pred_cap.reshape(len(y),)- y)**2) / (2*len(y))
-        if val:
-            losses_val.append(ris)
-            if best_loss > ris:
-                best_loss = ris  
-                best_rho = self.rho
-                best_N = self.N
-        return ris
+        list_scoring_val.append(score(y_pred_val, y_val))
+        args = [W.shape[0], W.shape[1], V.shape[0],V.shape[1], x_val, rho, y_val.reshape(-1,1) , N, True ]
+        list_loss_val.append(loss(omega_opt, args))
+    scoring_val = np.array(list_scoring_val).mean()
+    scoring_train = np.array(list_scoring_train).mean()
+    loss_train = np.array(list_loss).mean()
+    loss_val = np.array(list_loss_val).mean()
+    print("N:", N)
+    print("Rho", rho)
+    print("seed", seed)
+    print("Error train:", scoring_train)
+    print("Error val:", scoring_val)
+    print("Loss train:", loss_train)
+    print("Loss val", loss_val)
+    print("")
+    print("")
+    print("")
+    return loss_train, scoring_train, scoring_val, loss_val
 
 
 def score(y_pred, y_true):

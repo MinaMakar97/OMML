@@ -6,8 +6,8 @@ filename = r"Dataset.csv"
 rho = 1e-05
 N = 50
 sigma = 1
-start = 0
-end = 1
+start = -2
+end = 2
 m = 1
 n = 2 
 seed = 1804475 
@@ -20,7 +20,7 @@ x_train, y_train, x_test, y_test = shuffle_N_split(df, position_label, size_trai
 x_train_trans = transform(x_train) # added vector ones
 x_test_trans  = transform(x_test)  # added vector ones
 
-y_train_pred, end, W, V_new, G_train = train(x_train_trans, y_train, N, n, m, seed, rho)
+y_train_pred, end, W, V_new, G_train = train(x_train_trans, y_train, N, n, m, seed, rho, start, end)
 g_test = transform_G(W, x_test_trans)
 y_test_pred = feedforward(g_test, V_new) # predict
 

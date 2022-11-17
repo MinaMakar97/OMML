@@ -26,28 +26,38 @@ def train(x_train, y_train, N, n, m, rho, seed):
     omega = np.vstack([W.reshape(-1,1), V.reshape(-1,1)])
 
     start_time = time.time()
-    #### optimization wrt. V
-    args_V = [W, x_train, rho, y_train.reshape(-1,1) , N, True]
-    optimizer_1 = sc.optimize.minimize(loss_V, V.T, args=args_V, method="BFGS", jac=gradient_V, tol=0.0001, options={"maxiter":3000})
-    V_optimized = optimizer_1['x']
+    ### repeated optimization with 2-block decomposition
+    patience = 4 
+    n_iterations = 0
+    while patience > 0:
+        n_iterations += 1
+        wx = np.dot(W, x_train)
+        G_train = g(wx)
+        Q, C = quadratic_convex(G_train, V, y_train, len(y_train), rho)
+        V_optimized = sc.linalg.lstsq(Q, C)[0]
+        #### optimization wrt. W
+        args_W = [W.shape[0], W.shape[1], V_optimized.reshape(1,-1), x_train, rho, y_train.reshape(-1,1) , N, True]
+        optimizer = sc.optimize.minimize(loss_W, W, args=args_W, method="BFGS", jac=gradient_W, tol=0.0001, options={"maxiter":3000})
+        W_optimized = optimizer['x']
+        omega_new = np.vstack([W_optimized.reshape(-1,1), V_optimized.reshape(-1,1)]) ## (200,1)
+        W = W_optimized.reshape(W.shape[0], W.shape[1])
+        V = V_optimized.reshape(1,-1)
 
-    #### optimization wrt. W
-    args_W = [W.shape[0], W.shape[1], V_optimized.reshape(1,-1), x_train, rho, y_train.reshape(-1,1) , N, True]
-    optimizer_2 = sc.optimize.minimize(loss_W, W, args=args_W, method="BFGS", jac=gradient_W, tol=0.0001, options={"maxiter":3000})
-    W_optimized = optimizer_2['x']
-    end = time.time() - start_time 
+        diff_omega = np.linalg.norm(omega_new-omega)
+        tolerance = 10e-3
+        if diff_omega < tolerance:
+            patience -= 1
+        else:
+            patience = 4
+        omega = omega_new
 
-    ### new omega and final results
-    omega_new = np.vstack([W_optimized.reshape(-1,1), V_optimized.reshape(-1,1)]) ## (200,1)
-    W_new = W_optimized.reshape(W.shape[0], W.shape[1])
-    V_new = V_optimized.reshape(1,-1)
-
+    end = time.time() - start_time
     # Final Train Error
-    y_train_pred = feedforward(x_train, W_new, V_new)
+    y_train_pred = feedforward(x_train, W, V)
     args = [W.shape[0], W.shape[1], V.shape[0], V.shape[1], x_train, rho, y_train.reshape(-1,1) , N, True]
     loss_train = loss(omega_new, args)
 
-    return optimizer_1, optimizer_2, y_train_pred, end, W_new, V_new, loss_train
+    return n_iterations, y_train_pred, end, W, V, loss_train
 
 
 def hidden_output_weights(m, N, seedd, start, end):
@@ -68,7 +78,6 @@ def feedforward(x, W, V):
     return output
 
 def loss(omega, args):
-    print(len(args))
     row_w, col_w, row_v, col_v, x, rho, y, N, reg = args 
     norma = np.sum(omega ** 2)
     t = np.dot(omega[: row_w * col_w ].reshape(row_w, col_w), x) # (200, 186) W @ x         
@@ -111,6 +120,13 @@ def loss_W(W, args):
     error = np.sum((pred - y)**2)  #((186, 1), (186, 1))
     return t1 * error  + regularization * reg
 
+def quadratic_convex(G, V, y, p, rho):
+    lambda_ = p * rho
+    g_quad = np.dot(G, G.T)
+    temp = lambda_ * np.eye(G.shape[0])
+    Q = 1/len(y) * (g_quad + temp)
+    C = (1/p) * np.dot(G, y.reshape(-1, 1))
+    return Q , C
 
 
 ############## DERIVATE ####################

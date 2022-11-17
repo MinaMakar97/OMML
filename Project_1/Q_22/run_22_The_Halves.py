@@ -4,13 +4,13 @@ from function_22_The_Halves import *
 filename = r"Dataset.csv"
 
 rho = 1e-05
-N = 50
+N = 60
 sigma = 1
 start = 0
 end = 1
 m = 1
 n = 2 
-seed = 1804475 
+seed = 15615612 
 
 position_label = 2 # position of the label in the csv
 size_train = 186

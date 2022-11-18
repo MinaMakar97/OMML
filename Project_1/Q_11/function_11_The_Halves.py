@@ -1,10 +1,8 @@
 import numpy as np
 import scipy as sc
 import matplotlib.pyplot as plt
-import scipy.optimize as q
-import sklearn
-from sklearn.model_selection import GridSearchCV
 import time
+import itertools
 
 def shuffle_N_split(df, position_label, size_train):
     np.random.seed(1804475) # Mina's matricola number
@@ -165,8 +163,6 @@ def CrossValidation(k, params):
     list_loss = []
     list_scoring_train = []
     list_scoring_val = []
-    list_loss_val = []
-    omega_size = W.shape[0] * W.shape[1] + V.shape[1]
     omega = np.vstack([W.reshape(-1,1), V.reshape(-1,1)])
     for i in range(k):
         x_val = x[:,index_range[i]]
@@ -188,23 +184,35 @@ def CrossValidation(k, params):
 
         list_scoring_val.append(score(y_pred_val, y_val))
         args = [W.shape[0], W.shape[1], V.shape[0],V.shape[1], x_val, rho, y_val.reshape(-1,1) , N, True ]
-        list_loss_val.append(loss(omega_opt, args))
+        
     scoring_val = np.array(list_scoring_val).mean()
     scoring_train = np.array(list_scoring_train).mean()
     loss_train = np.array(list_loss).mean()
-    loss_val = np.array(list_loss_val).mean()
     print("N:", N)
     print("Rho", rho)
     print("seed", seed)
     print("Error train:", scoring_train)
     print("Error val:", scoring_val)
     print("Loss train:", loss_train)
-    print("Loss val", loss_val)
     print("")
     print("")
     print("")
-    return loss_train, scoring_train, scoring_val, loss_val
+    return loss_train, scoring_train, scoring_val
 
+def grid_search(iterables, cv, input_params):
+    best_params = []
+    x_train, y_train, start, end = input_params 
+    n = 2
+    m = 1
+    loss_train, scoring_train, scoring_val, best_scoring_val = 100000, 100000, 10000, 100000
+    for t in itertools.product(*iterables):
+        seed, N, rho, sigma = t
+        params = [x_train, N, m, n, rho, start, end, seed, y_train]
+        loss_train, scoring_train, scoring_val, loss_val = CrossValidation(cv, params)
+        if  scoring_val < best_scoring_val:
+            best_scoring_val = scoring_val
+            best_params = [N, seed, rho]
+    return best_params
 
 def score(y_pred, y_true):
     return np.sum((y_pred.reshape(len(y_true),) - y_true)**2) / (2* len(y_true))
@@ -215,3 +223,20 @@ def transform(x):
     x = x.T
     x = np.insert(x, 0, ones_, axis=0)
     return x
+
+
+"""
+list_N = [20, 50, 70]
+list_sigma = [1]
+list_seed = [1883300, 1884475]  
+rho_init = np.random.uniform(10**-5,10**-3, 2)
+rho_init = np.append(rho_init, [1e-05, 1e-03])
+iterables = [list_seed, list_N, rho_init, list_sigma]
+x_train_trans = trasform(x_train)
+x_test_trans = trasform(x_test)
+start = 0
+end = 1
+input_params = x_train_trans, y_train, start, end  
+best_params = grid_search(iterables, 3, input_params)
+
+"""

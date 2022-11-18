@@ -30,7 +30,7 @@ print("Number of function evaluations: ", optimizer['nfev'])
 print("Number of gradient evaluations: ", optimizer['njev'])
 print("Number of iterations: ", optimizer['nit'])
 print("Output message: ", optimizer['message'])
-print("Time to optimize the network", end)
+print("Time to optimize the network", end, "s")
 print("Train Error:", score(y_train_pred, y_train))
 # Final Test Error
 print("Error test:", score(y_test_pred, y_test))

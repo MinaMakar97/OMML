@@ -29,7 +29,7 @@ print("Number of Neurons chosen N=", N)
 print("Sigma=", 1)
 print("rho=", rho)
 print("Optimization with quadratic_convex")
-print("Time to optimize the network", execution_time)
+print("Time to optimize the network", execution_time, "s")
 print("Train Error:", score(y_train_pred, y_train))
 # Final Test Error
 print("Error test:", score(y_test_pred, y_test))

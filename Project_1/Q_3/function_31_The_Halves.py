@@ -28,9 +28,13 @@ def train(x_train, y_train, N, n, m, rho, seed):
     start_time = time.time()
     ### repeated optimization with 2-block decomposition
     patience = 4 
-    n_iterations = 0
+    outer_iterations = 0
+    total_nfev = 0
+    total_njev = 0
+    total_nit = 0
+    last_message = ""
     while patience > 0:
-        n_iterations += 1
+        outer_iterations += 1
         wx = np.dot(W, x_train)
         G_train = g(wx)
         Q, C = quadratic_convex(G_train, V, y_train, len(y_train), rho)
@@ -38,7 +42,15 @@ def train(x_train, y_train, N, n, m, rho, seed):
         #### optimization wrt. W
         args_W = [W.shape[0], W.shape[1], V_optimized.reshape(1,-1), x_train, rho, y_train.reshape(-1,1) , N, True]
         optimizer = sc.optimize.minimize(loss_W, W, args=args_W, method="BFGS", jac=gradient_W, tol=0.0001, options={"maxiter":3000})
+
+        # used for the output
+        total_nfev += optimizer['nfev']
+        total_njev += optimizer['njev']
+        total_nit += optimizer['nit']
+        last_message = optimizer['message']
+        
         W_optimized = optimizer['x']
+
         omega_new = np.vstack([W_optimized.reshape(-1,1), V_optimized.reshape(-1,1)]) ## (200,1)
         W = W_optimized.reshape(W.shape[0], W.shape[1])
         V = V_optimized.reshape(1,-1)
@@ -57,7 +69,7 @@ def train(x_train, y_train, N, n, m, rho, seed):
     args = [W.shape[0], W.shape[1], V.shape[0], V.shape[1], x_train, rho, y_train.reshape(-1,1) , N, True]
     loss_train = loss(omega_new, args)
 
-    return n_iterations, y_train_pred, end, W, V, loss_train
+    return outer_iterations, y_train_pred, end, W, V, loss_train, total_nfev, total_njev, total_nit, last_message, optimizer, diff_omega
 
 
 def hidden_output_weights(m, N, seedd, start, end):

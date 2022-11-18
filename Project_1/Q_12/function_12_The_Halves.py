@@ -1,14 +1,10 @@
 import numpy as np
 import scipy as sc
 import matplotlib.pyplot as plt
-import scipy.optimize as q
-import sklearn
-from sklearn.model_selection import GridSearchCV
 import time
 from sklearn.base import *
-from imblearn.under_sampling import RandomUnderSampler
-from imblearn.pipeline import make_pipeline as make_imb_pipeline
 from sklearn.ensemble import *
+import itertools
 
 def shuffle_N_split(df, position_label, size_train):
     np.random.seed(1804475) # Mina's matricola number
@@ -132,82 +128,73 @@ def gradient(omega,args):
     gradient = np.squeeze(np.append(der_E_c, der_E_v))
     return gradient
 
+def prediction_func(x,C,V,N,sigma):
+    p = x.shape[1]
+    res_phi = np.apply_along_axis(phi, 0, x,C,sigma,N,2).reshape(N,p)
+    return np.dot(V,res_phi)
 
-####### MODIFIED SKLEARN TO DID THE K-FOLD CROSS VALIDATION ##########
+def CrossValidation(k, params):
+    x, N, m, n, rho, start, end, seed, y, sigma = params
+    C = create_C(N,n,seed,start,end)
+    V = create_V(m,N,seed,start,end)
+    p = x.shape[1]
+    index_range = np.arange(p)
+    index_range = index_range.reshape(k,int(p/k))
+    list_loss = []
+    list_scoring_train = []
+    list_scoring_val = []
+    omega = np.vstack([C.reshape(-1,1), V.reshape(-1,1)])
+    for i in range(k):
+        x_val = x[:,index_range[i]]
+        x_train = x[:, np.delete(index_range, i, axis=0).flatten()]
+        y_train = y[np.delete(index_range, i, axis=0).flatten()]
+        y_val = y[index_range[i]]
+        args = [x_train, N, sigma, rho, y_train, C.shape[0], C.shape[1], V.shape[0], V.shape[1], True]
 
-
-
-
-class ResampledEnsemble2(BaseEstimator):
-    def __init__(self, N=100, m=None, n=None, rho=None, seed=1804475, C=None, V= None, start=-1, end=1, sigma=1, bool_reg=True):
-        self._estimator_type = "Predictor"
-        self.N = N
-        self.m = m
-        self.n = n
-        self.rho = rho
-        self.seed = seed
-        self.C = C
-        self.V = V
-        self.loss = 0
-        self.start = start
-        self.end = end
-        self.bool_reg = bool_reg
-        self.sigma = sigma
-
-    def fit(self, X, y):
-        C = create_C(self.N, self.n, self.seed, self.start, self.end)
-        V = create_V(self.m, self.N, self.seed, self.start, self.end)
-        X = X.T
-        X = np.tile(X, (self.N,1))
-        args = [X, self.N, self.sigma, self.rho, y, C.shape[0], C.shape[1], V.shape[0], V.shape[1], True ]
-        omega = np.vstack([C.reshape(-1,1), V.reshape(-1,1)])
-        args[-1] = self.bool_reg
         omega_opt = sc.optimize.minimize(loss, omega, args=args, method='BFGS', jac=gradient, tol=0.0001, options={"maxiter":3000})['x']
-        self.C = omega_opt[: C.shape[0] * C.shape[1]].reshape(C.shape[0], C.shape[1])
-        self.V = omega_opt[C.shape[0] * C.shape[1]: ].reshape(V.shape[0], V.shape[1])
-        self.score(X, y)
-        return self
-        
 
-    def set_params(self, **params):
-        if not params:
-            return self
+        new_C = omega_opt[: C.shape[0] * C.shape[1]].reshape(C.shape[0], C.shape[1])
+        new_V = omega_opt[C.shape[0] * C.shape[1]: ].reshape(V.shape[0], V.shape[1])
 
-        for key, value in params.items():
-            if hasattr(self, key):
-                setattr(self, key, value)
-            else:
-                self.kwargs[key] = value
-        
-        return self
-    def predict(self, X):
-        return feedforward(X, self.C, self.V, self.N, self.sigma )
+        y_pred = prediction_func(x_train, new_C, new_V, N, sigma)
+        y_pred_val = prediction_func(x_val, new_C, new_V, N, sigma)
 
-    def score(self, X, y):
-        global  best_loss, best_rho, best_N, losses_val, losses_train, avg_loss_batch, best_sigma
-        val = False
-        #print(X.shape)
-        if X.shape[0] != 2*self.N: # validation
-            X = X.T # di default sklearn the given in input by sklearn is different from the required
-            X = np.tile(X, (self.N,1))
-            val = True
-            losses_train.append(np.mean(np.array(avg_loss_batch)))
-            avg_loss_batch = []
-        else:
-            pred_cap = self.predict(X)
-            self.loss = np.sum((pred_cap.reshape(len(y),) - y)**2) / (2*len(y))
-            avg_loss_batch.append(self.loss)
-        pred_cap = self.predict(X)
-        ris = np.sum((pred_cap.reshape(len(y),)- y)**2) / (2*len(y))
-        if val:
-            losses_val.append(ris)
-            if best_loss > ris:
-                best_loss = ris  
-                best_rho = self.rho
-                best_N = self.N
-                best_sigma = self.sigma
-        return ris
+        list_scoring_train.append(score(y_pred, y_train))
+        list_loss.append(loss(omega_opt, args))
 
+        list_scoring_val.append(score(y_pred_val, y_val))
+        args = [x_val, N, sigma, rho, y_val, C.shape[0], C.shape[1], V.shape[0], V.shape[1], True]
+
+    scoring_val = np.array(list_scoring_val).mean()
+    scoring_train = np.array(list_scoring_train).mean()
+    loss_train = np.array(list_loss).mean()
+
+    print("N:", N)
+    print("Rho", rho)
+    print("seed", seed)
+    print("sigma", sigma)
+    print("Error train:", scoring_train)
+    print("Error val:", scoring_val)
+    print("Loss train:", loss_train)
+    print("")
+    print("")
+    print("")
+    return loss_train, scoring_train, scoring_val
+
+def grid_search(iterables, cv, input_params):
+    best_params = []
+    x_train, y_train, start, end = input_params 
+    n = 2
+    m = 1
+    loss_train, scoring_train, scoring_val, best_scoring_val = 100000, 100000, 10000, 100000
+    for t in itertools.product(*iterables):
+        seed, N, rho, sigma = t
+        params = [x_train, N, m, n, rho, start, end, seed, y_train]
+        loss_train, scoring_train, scoring_val = CrossValidation(cv, params)
+        if  scoring_val < best_scoring_val:
+            best_scoring_val = scoring_val
+            best_params = [N, seed, rho]
+    return best_params
 
 def score(y_pred, y_true):
     return np.sum((y_pred.reshape(len(y_true),) - y_true)**2) / (2* len(y_true))
@@ -243,3 +230,21 @@ def plotting(funct, title, C, V, d, N, sigma):
     ax.set_zlabel('z')
     ax.set_title(title)
     plt.show()
+
+
+""""
+#example in how we find our paramters
+
+list_N = [20,40, 50, 60, 70]
+list_sigma = [1]
+list_seed = [1883300, 1884475]  
+rho_init = np.random.uniform(10**-5,10**-3, 2)
+rho_init = np.append(rho_init, [1e-05, 1e-03])
+iterables = [list_seed, list_N, rho_init, list_sigma]
+x_train_trans = trasform(x_train)
+x_test_trans = trasform(x_test)
+start = 0
+end = 1
+input_params = x_train_trans, y_train, start, end  
+best_params = grid_search(iterables, 3, input_params)
+"""

@@ -226,3 +226,15 @@ def plotting(funct, title, W, V, d ):
     ax.set_zlabel('z')
     ax.set_title(title)
     plt.show()
+
+
+'''
+TO GET SOME USEFUL VALUES
+    initial_pred_train = feedforward(x_train, W, V)
+    initial_error_train = score(initial_pred_train, y_train)
+    initial_pred_test = feedforward(x_test, W, V)
+    initial_error_test = score(initial_pred_test, y_test)
+    print("initial error train", initial_error_train)
+    print("initial error test", initial_error_test)
+    print("loss initial guess", loss(omega, args))
+'''

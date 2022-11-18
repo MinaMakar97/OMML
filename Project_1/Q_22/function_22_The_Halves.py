@@ -158,3 +158,16 @@ def train(x_train, y_train, N, n, rho, seed, sigma):
     y_train_pred = prediction_func(phi_train, V_new)
     
     return y_train_pred, V_new, args, execution_time, C
+
+'''
+TO GET SOME USEFUL VALUES
+    V = create_V(1, N, seed, 0, 1)
+    initial_pred_train = prediction_func(phi_train, V)
+    initial_error_train = score(initial_pred_train, y_train)
+    initial_pred_test = predict(x_test, C, sigma, N, n, V)
+    initial_error_test = score(initial_pred_test, y_test)
+    print("initial error train", initial_error_train)
+    print("initial error test", initial_error_test)
+    print("loss initial guess", loss(V.reshape(-1, 1), args))
+
+'''

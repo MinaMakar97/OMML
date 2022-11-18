@@ -6,8 +6,6 @@ import sklearn
 from sklearn.model_selection import GridSearchCV
 import time
 from sklearn.base import *
-from imblearn.under_sampling import RandomUnderSampler
-from imblearn.pipeline import make_pipeline as make_imb_pipeline
 from sklearn.ensemble import *
 
 def shuffle_N_split(df, position_label, size_train):
@@ -147,3 +145,18 @@ def plotting(funct, title, W, V, d ):
     ax.set_zlabel('z')
     ax.set_title(title)
     plt.show()
+
+'''
+TO GET SOME USEFUL VALUES
+    G_train = transform_G(W, x_train)
+    G_test = transform_G(W, x_test)
+    args = [G_train, rho, y_train, N, True]
+    initial_pred_train = feedforward(G_train, V)
+    initial_error_train = score(initial_pred_train, y_train)
+    initial_pred_test = feedforward(G_test, V)
+    initial_error_test = score(initial_pred_test, y_test)
+    print("initial error train", initial_error_train)
+    print("initial error test", initial_error_test)
+    print("loss initial guess", loss(V.reshape(-1, 1), args))
+
+'''

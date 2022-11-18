@@ -247,4 +247,20 @@ start = 0
 end = 1
 input_params = x_train_trans, y_train, start, end  
 best_params = grid_search(iterables, 3, input_params)
+
+
+TO GET SOME USEFUL VALUES
+    gradient_v = gradient(omega, args)
+    norm_gradient_initial = np.sqrt(np.sum(gradient_v)**2)
+    print("norm gradient initial", norm_gradient_initial)
+    initial_pred_train = feedforward(x_train, C, V,  N, sigma)
+    initial_error_train = score(initial_pred_train, y_train)
+    initial_pred_test = feedforward(x_test, C, V,  N, sigma)
+    initial_error_test = score(initial_pred_test, y_test)
+    print("initial error train", initial_error_train)
+    print("initial error test", initial_error_test)
+    print("loss initial guess", loss(omega, args))
+    gradient_final = gradient(optimized['x'], args)
+    norm_gradient_final = np.sqrt(np.sum(gradient_final)**2)
+    print("norm gradient final", norm_gradient_final)
 """

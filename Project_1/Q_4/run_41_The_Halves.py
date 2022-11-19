@@ -1,17 +1,13 @@
-from function_11_The_Halves import *
-#from Test_11_The_Halves import *
-
+from function_41_The_Halves import *
 # set best parameter
+
 N = 50
 n = 2
 m = 1
-rho = 1e-05
-seed = 1883300
+seed = 1884475
 position_label = 2  # position of the label in the csv
 size_train = 186
 
-#df = np.genfromtxt(filename, delimiter=",", usemask=False)
-#print(df)
 df = np.array([[-1.68156303e-02,  1.49361613e+00, -9.96793759e-01]
 ,[-9.54450459e-02,  2.74278733e+00, -1.16915490e+00]
 ,[-1.90014212e+00,  6.74755716e-01,  2.56156847e-01]
@@ -265,29 +261,58 @@ df = np.array([[-1.68156303e-02,  1.49361613e+00, -9.96793759e-01]
 
 x_train, y_train, x_test, y_test = shuffle_N_split(
     df, position_label, size_train)
+
+
+n = 2
+m = 1
+seed = 1884475
+position_label = 2  # position of the label in the csv
+size_train = 186
+
 x_train_trans = transform(x_train)  # added vector ones
 x_test_trans = transform(x_test)  # added vector ones
 
+# define architecture
+model = Model_([
+    Dense(3, 40),
+    Tanh(),
+    Dense(40, 20),
+    Tanh(),
+    Dense(20, 1),
+])
 
-optimizer, y_train_pred, end, W_new, V_new, args = train(
-    x_train_trans, y_train, N, n, m, rho, seed)
+loss_function = torch.nn.MSELoss()
+# I know it's too much, sorry, if you want to see if it's work well you can set 10000
+# but if I change the learning rate to speed up the computation the result is so bad, 
+# and not optain a smooth decreasing
+# you can check also the plot commented below, with it you can see the plot with error train and error test to check to not overfittings
+max_epochs = 240000 
+learning_rate = 0.05
+patience = 10
 
-y_test_pred = feedforward(x_test_trans, W_new, V_new)  # predict
+y_train_pred, y_test_pred, loss_train, loss_test, end, train_losses, test_losses, model, i, train_error, test_error = train_N_predict(
+    x_train_trans, y_train, x_test_trans, y_test, model, max_epochs, loss_function, learning_rate, patience)
 
+#y_test_pred = feedforward(x_test_trans, W_new, V_new)  # predict
 
-print("Number of Neurons chosen N=", N)
-print("Sigma=", 1)
-print("rho=", rho)
-print("Optimization solver BFGS")
-print("Number of function evaluations: ", optimizer['nfev'])
-print("Number of gradient evaluations: ", optimizer['njev'])
+print("Number of layer", 2)
+print("Number of Neurons first layer=", 40)
+print("Number of Neurons second layer=", 20)
+print("Learning rate", learning_rate)
+print("Loss function: MSE_Loss")
+print("Optimization solver with autograd with backpropagation")
 
 print("Time to optimize the network", end, "s")
-print("Training Error:", score(y_train_pred, y_train))
+print("Training Error:", train_error)
+
 # Final Test Error
-print("Test Error:", score(y_test_pred, y_test))
-#print("Loss train", loss(optimizer['x'], args))
-
+print("Test Error:", test_error)
+print("Loss train", loss_train)
+plt.plot(torch.arange(len(train_losses)), train_losses, label="Train loss")
+plt.plot(torch.arange(len(test_losses)), test_losses, label="Test loss")
+plt.title("Train loss")
+plt.legend()
+plt.ylim(0, 1)
+plt.show()
 a = input("Click enter to visualize the plot")
-plotting(feedforward, "",  W_new, V_new, 100)
-
+plotting(model.forward, "", 100)

@@ -18,31 +18,7 @@ def shuffle_N_split(df, position_label, size_train):
     y_test = test[:, position_label]
     return x_train, y_train, x_test, y_test
 
-def train(x_train, y_train, N, n, m, rho, seed, sigma, bool_reg):
-        
-    # generate W and V
-    C = create_C(N, n, seed, 0, 1)
-    V = create_V(m, N, seed, 0, 1)
 
-    # union in the same vector W and V
-    omega = np.vstack([C.reshape(-1,1), V.reshape(-1,1)])
-    
-    args = [x_train, N, sigma, rho, y_train, C.shape[0], C.shape[1], V.shape[0], V.shape[1], bool_reg]
-    
-    # find best parameter
-    start_time = time.time()
-    optimized = sc.optimize.minimize(loss, omega, args=args, method="BFGS", jac=gradient, tol=0.0001, options={"maxiter":3000})
-    end = time.time() - start_time 
-
-    
-    # recalculate C and V
-    C_new = optimized['x'][: C.shape[0] * C.shape[1]].reshape(C.shape[0], C.shape[1])
-    V_new = optimized['x'][C.shape[0] * C.shape[1]: ].reshape(V.shape[0], V.shape[1])
-
-    # Final Train Error
-    y_train_pred = feedforward(x_train, C_new, V_new, N, sigma)
-    
-    return optimized, y_train_pred, end, C_new, V_new, args
 
 
 # N: number of neurons in the first hidden layer
@@ -51,10 +27,12 @@ def train(x_train, y_train, N, n, m, rho, seed, sigma, bool_reg):
 def create_V(m, N, seedd, start, end):
     np.random.seed(seedd)
     return np.random.uniform(start, end,size=(m, N))            
-  
+
+
 def create_C(N, n, seedd, start, end):
     np.random.seed(seedd)
     return np.random.uniform(start, end,size=(n*N, 1))
+
 
 def phi(x, c, sigma, N, n): ##### phi for a single sample
   x = x.reshape(-1,1)
@@ -63,9 +41,10 @@ def phi(x, c, sigma, N, n): ##### phi for a single sample
   norm = np.sum(radius_neurons**2,axis=1)
   return np.exp(-(norm/sigma**2)).reshape(-1,1)   
 
+
 def feedforward(x, C, V, N, sigma):
     p = x.shape[1]
-    res_phi = np.apply_along_axis(phi, 0, x, C, sigma, N, 2).reshape(N,p)
+    res_phi = np.apply_along_axis(phi, 0, x, C, sigma, N, 2).reshape(N,p) # apply function phi long axis 0
     return np.dot(V,res_phi)
 
 def g(t):
@@ -76,25 +55,27 @@ def g(t):
 def loss(omega,args):
   # initialization
   x, N, sigma, rho, y, row_c, col_c, row_v, col_v, reg = args
+
   #print(row_c, col_c, row_v, col_v, omega.shape)
   C = omega[: row_c * col_c ].reshape(row_c, col_c)
   V = omega[row_c * col_c: ].reshape(row_v, col_v)
   p = x.shape[1]
+
   # get prediction
   res_phi = np.apply_along_axis(phi, 0, x,C,sigma,N,2).reshape(N,p)
   prediction = np.dot(V,res_phi)
+
   # loss
   norma_reg = np.sum(omega ** 2)
   l = np.sum((prediction - y)**2) #((186, 1), (186, 1))
   regularization_term = (rho/2 * norma_reg)
   return (1 / (2 * p)) * l  + regularization_term * reg
 
-
-
-
+################## DERIVATE ######################
 
 def derivate_E_wrt_v(A, B, p, rho, V):
     return 1/p * np.dot(A, B.T) + rho * V.T
+
 
 def derivate_E_wrt_c(B, p, rho, C, F):
     bf_t = np.dot(B, F.T)
@@ -128,6 +109,10 @@ def gradient(omega,args):
     gradient = np.squeeze(np.append(der_E_c, der_E_v))
     return gradient
 
+
+#################################################
+
+
 def prediction_func(x,C,V,N,sigma):
     p = x.shape[1]
     res_phi = np.apply_along_axis(phi, 0, x,C,sigma,N,2).reshape(N,p)
@@ -139,7 +124,7 @@ def CrossValidation(k, params):
     V = create_V(m,N,seed,start,end)
     p = x.shape[1]
     index_range = np.arange(p)
-    index_range = index_range.reshape(k,int(p/k))
+    index_range = index_range.reshape(k, int(p/k))
     list_loss = []
     list_scoring_train = []
     list_scoring_val = []
@@ -181,6 +166,8 @@ def CrossValidation(k, params):
     print("")
     return loss_train, scoring_train, scoring_val
 
+
+
 def grid_search(iterables, cv, input_params):
     best_params = []
     x_train, y_train, start, end = input_params 
@@ -195,6 +182,8 @@ def grid_search(iterables, cv, input_params):
             best_scoring_val = scoring_val
             best_params = [N, seed, rho]
     return best_params
+
+
 
 def score(y_pred, y_true):
     return np.sum((y_pred.reshape(len(y_true),) - y_true)**2) / (2* len(y_true))
@@ -231,6 +220,31 @@ def plotting(funct, title, C, V, d, N, sigma):
     ax.set_title(title)
     plt.show()
 
+def train(x_train, y_train, N, n, m, rho, seed, sigma, bool_reg):
+        
+    # generate W and V
+    C = create_C(N, n, seed, 0, 1)
+    V = create_V(m, N, seed, 0, 1)
+
+    # union in the same vector W and V
+    omega = np.vstack([C.reshape(-1,1), V.reshape(-1,1)])
+    
+    args = [x_train, N, sigma, rho, y_train, C.shape[0], C.shape[1], V.shape[0], V.shape[1], bool_reg]
+    
+    # find best parameter
+    start_time = time.time()
+    optimized = sc.optimize.minimize(loss, omega, args=args, method="BFGS", jac=gradient, tol=0.0001, options={"maxiter":3000})
+    end = time.time() - start_time 
+
+    
+    # recalculate C and V
+    C_new = optimized['x'][: C.shape[0] * C.shape[1]].reshape(C.shape[0], C.shape[1])
+    V_new = optimized['x'][C.shape[0] * C.shape[1]: ].reshape(V.shape[0], V.shape[1])
+
+    # Final Train Error
+    y_train_pred = feedforward(x_train, C_new, V_new, N, sigma)
+    
+    return optimized, y_train_pred, end, C_new, V_new, args
 
 """"
 #example in how we find our paramters

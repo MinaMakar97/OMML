@@ -18,34 +18,6 @@ def shuffle_N_split(df, position_label, size_train):
     return x_train, y_train, x_test, y_test
 
 
-def train(x_train, y_train, N, n, m, rho, seed):
-
-    # generate W and V
-    W = input_hidden_weights(N, n, seed, 0, 1)
-    V = hidden_output_weights(m, N, seed, 0, 1)
-
-    # union in the same vector W and V
-    omega = np.vstack([W.reshape(-1, 1), V.reshape(-1, 1)])
-    args = [W.shape[0], W.shape[1], V.shape[0], V.shape[1],
-            x_train, rho, y_train.reshape(-1, 1), N, True]
-
-    # find best parameter
-    start_time = time.time()
-    optimizer = sc.optimize.minimize(
-        loss, omega, args=args, method="BFGS", jac=gradient, tol=0.0001, options={"maxiter": 3000})
-    end = time.time() - start_time
-    optimi = optimizer['x']
-
-    # recalculate W and V
-    W_new = optimi[: W.shape[0] * W.shape[1]].reshape(W.shape[0], W.shape[1])
-    V_new = optimi[W.shape[0] * W.shape[1]:].reshape(V.shape[0], V.shape[1])
-
-    # Final Train Error
-    y_train_pred = feedforward(x_train, W_new, V_new)
-
-    return optimizer, y_train_pred, end, W_new, V_new, args
-
-
 # N: number of neurons in the first hidden layer
 # n: the dimension of input, in this project is 2
 def hidden_output_weights(m, N, seed, start, end):
@@ -53,9 +25,8 @@ def hidden_output_weights(m, N, seed, start, end):
     # In this case m=1 and we don't consider biases for output layer
     return np.random.uniform(start, end, size=(m, N))
 
+
 # m : the dimension of output
-
-
 def input_hidden_weights(N, n, seed, start, end):
     np.random.seed(seed)
     # We added a default +1 that corresponds to the bias
@@ -79,8 +50,7 @@ def loss(omega, args):
     # (200, 186) W @ x
     t = np.dot(omega[: row_w * col_w].reshape(row_w, col_w), x)
     temp = g(t)
-    pred = np.dot(omega[row_w * col_w:].reshape(row_v, col_v),
-                  temp).reshape(-1, 1)      # V @ t
+    pred = np.dot(omega[row_w * col_w:].reshape(row_v, col_v), temp).reshape(-1, 1)      # V @ t
     p = len(y)
     regularization = (rho / 2) * norma
     t1 = 1/(2*p)
@@ -104,6 +74,7 @@ def plotting(funct, title, W, V, d):
     l = np.array(l)
     ones = np.ones(l.shape[0])
     data = np.c_[ones, l].T
+
     # evaluate the function (note that X,Y,Z are matrix)
     Z = funct(data, W, V, )
 
@@ -156,9 +127,9 @@ def gradient(omega, args):
     # initialization
     wx = np.dot(W, x)  # (200, 186) W @ x
     A = g(wx)  # (20, 186)
-    B = np.dot(V, A).T  # (186, 1)
+    #B = np.dot(V, A).T  # (186, 1)
     p = x.shape[1]
-    W_column = W.flatten().reshape(-1, 1)  # W in column
+
     d_e_a = derivate_E_wrt_a(W, x, y, V, p, rho, N)
     d_e_v = derivate_E_wrt_v(W, x, y, p, V, rho)  # (W, X, y, p, V, rho)
     gradient = np.squeeze(np.append(d_e_a, d_e_v))
@@ -167,43 +138,55 @@ def gradient(omega, args):
 
 def CrossValidation(k, params):
     x, N, m, n, rho, start, end, seed, y = params
+
+    # initialization
     W = input_hidden_weights(N, n, seed, start, end)
     V = hidden_output_weights(m, N, seed, start, end)
     p = x.shape[1]
+
     index_range = np.arange(p)
     index_range = index_range.reshape(k, int(p/k))
     list_loss = []
     list_scoring_train = []
     list_scoring_val = []
+
+    # union W and V together
     omega = np.vstack([W.reshape(-1, 1), V.reshape(-1, 1)])
+
+    # for each k
     for i in range(k):
-        x_val = x[:, index_range[i]]
-        x_train = x[:, np.delete(index_range, i, axis=0).flatten()]
-        y_train = y[np.delete(index_range, i, axis=0).flatten()]
+        x_val = x[:, index_range[i]] # set x_val
         y_val = y[index_range[i]]
+        x_train = x[:, np.delete(index_range, i, axis=0).flatten()] # take the other k except the x_val
+        y_train = y[np.delete(index_range, i, axis=0).flatten()] # # take the other k except the y_val
         args = [W.shape[0], W.shape[1], V.shape[0], V.shape[1],
                 x_train, rho, y_train.reshape(-1, 1), N, True]
 
         omega_opt = sc.optimize.minimize(
             loss, omega, args=args, method='BFGS', jac=gradient, tol=0.0001, options={"maxiter": 3000})['x']
 
-        new_W = omega_opt[: W.shape[0] * W.shape[1]
-                          ].reshape(W.shape[0], W.shape[1])
-        new_V = omega_opt[W.shape[0] * W.shape[1]                          :].reshape(V.shape[0], V.shape[1])
+        # take the optimize parameter from omega_opt 
+        new_W = omega_opt[: W.shape[0] * W.shape[1]].reshape(W.shape[0], W.shape[1])
+        new_V = omega_opt[W.shape[0] * W.shape[1] :].reshape(V.shape[0], V.shape[1])
 
+        # prediction for x_train and x_val
         y_pred = feedforward(x_train, new_W, new_V)
         y_pred_val = feedforward(x_val, new_W, new_V)
 
+        # added the score for x_train and x_val and loss for x_train
         list_scoring_train.append(score(y_pred, y_train))
         list_loss.append(loss(omega_opt, args))
-
         list_scoring_val.append(score(y_pred_val, y_val))
+
         args = [W.shape[0], W.shape[1], V.shape[0], V.shape[1],
                 x_val, rho, y_val.reshape(-1, 1), N, True]
 
+    # return the mean from each list
     scoring_val = np.array(list_scoring_val).mean()
     scoring_train = np.array(list_scoring_train).mean()
     loss_train = np.array(list_loss).mean()
+
+    # this print is used to have a full control
     print("N:", N)
     print("Rho", rho)
     print("seed", seed)
@@ -243,6 +226,33 @@ def transform(x):
     x = np.insert(x, 0, ones_, axis=0)
     return x
 
+
+def train(x_train, y_train, N, n, m, rho, seed):
+
+    # generate W and V
+    W = input_hidden_weights(N, n, seed, 0, 1)
+    V = hidden_output_weights(m, N, seed, 0, 1)
+
+    # union in the same vector W and V
+    omega = np.vstack([W.reshape(-1, 1), V.reshape(-1, 1)])
+    args = [W.shape[0], W.shape[1], V.shape[0], V.shape[1],
+            x_train, rho, y_train.reshape(-1, 1), N, True]
+
+    # find best parameter
+    start_time = time.time()
+    optimizer = sc.optimize.minimize(
+        loss, omega, args=args, method="BFGS", jac=gradient, tol=0.0001, options={"maxiter": 3000})
+    end = time.time() - start_time
+    optimi = optimizer['x']
+
+    # recalculate W and V
+    W_new = optimi[: W.shape[0] * W.shape[1]].reshape(W.shape[0], W.shape[1])
+    V_new = optimi[W.shape[0] * W.shape[1]:].reshape(V.shape[0], V.shape[1])
+
+    # Final Train Error
+    y_train_pred = feedforward(x_train, W_new, V_new)
+
+    return optimizer, y_train_pred, end, W_new, V_new, args
 
 """
 list_N = [20, 50, 70]

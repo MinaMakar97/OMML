@@ -33,7 +33,7 @@ def train(x_train, y_train, N, n, m, rho, seed):
     total_njev = 0
     total_nit = 0
     last_message = ""
-    tollerance = 0.01
+    tolerance_loss = 0.01
     args = [W.shape[0], W.shape[1], V.shape[0], V.shape[1], x_train, rho, y_train.reshape(-1,1) , N, True]
     while patience > 0:
         prec_error = loss(omega, args)
@@ -62,7 +62,7 @@ def train(x_train, y_train, N, n, m, rho, seed):
 
         diff_omega = np.linalg.norm(omega_new-omega)
         tolerance = 10e-3
-        if diff_omega < tolerance and actual_error - prec_error <= tollerance :
+        if diff_omega < tolerance and actual_error - prec_error <= tolerance_loss :
             patience -= 1
         else:
             patience = 4

@@ -241,7 +241,7 @@ def train(x_train, y_train, N, n, m, rho, seed):
     # find best parameter
     start_time = time.time()
     optimizer = sc.optimize.minimize(
-        loss, omega, args=args, method="BFGS", jac=gradient, tol=0.0001, options={"maxiter": 3000})
+        loss, omega, args=args, method="BFGS", jac=gradient, tol=0.0001, options={"maxiter": 1000})
     end = time.time() - start_time
     optimi = optimizer['x']
 

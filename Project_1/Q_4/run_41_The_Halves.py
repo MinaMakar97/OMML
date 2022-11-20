@@ -1,7 +1,7 @@
 from function_41_The_Halves import *
 # set best parameter
 
-N = 50
+
 n = 2
 m = 1
 seed = 1884475
@@ -262,13 +262,6 @@ df = np.array([[-1.68156303e-02,  1.49361613e+00, -9.96793759e-01]
 x_train, y_train, x_test, y_test = shuffle_N_split(
     df, position_label, size_train)
 
-
-n = 2
-m = 1
-seed = 1884475
-position_label = 2  # position of the label in the csv
-size_train = 186
-
 x_train_trans = transform(x_train)  # added vector ones
 x_test_trans = transform(x_test)  # added vector ones
 
@@ -293,7 +286,6 @@ patience = 10
 y_train_pred, y_test_pred, loss_train, loss_test, end, train_losses, test_losses, model, i, train_error, test_error = train_N_predict(
     x_train_trans, y_train, x_test_trans, y_test, model, max_epochs, loss_function, learning_rate, patience)
 
-#y_test_pred = feedforward(x_test_trans, W_new, V_new)  # predict
 
 print("Number of layer", 2)
 print("Number of Neurons first layer=", 40)
@@ -308,11 +300,14 @@ print("Training Error:", train_error)
 # Final Test Error
 print("Test Error:", test_error)
 print("Loss train", loss_train)
-plt.plot(torch.arange(len(train_losses)), train_losses, label="Train loss")
-plt.plot(torch.arange(len(test_losses)), test_losses, label="Test loss")
-plt.title("Train loss")
-plt.legend()
-plt.ylim(0, 1)
-plt.show()
+
+
+
+#plt.plot(torch.arange(len(train_losses)), train_losses, label="Train loss")
+#plt.plot(torch.arange(len(test_losses)), test_losses, label="Test loss")
+#plt.title("Train loss")
+#plt.legend()
+#plt.ylim(0, 1)
+#plt.show()
 a = input("Click enter to visualize the plot")
 plotting(model.forward, "", 100)

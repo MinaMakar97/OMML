@@ -33,14 +33,17 @@ def train(x_train, y_train, N, n, m, rho, seed):
     total_njev = 0
     total_nit = 0
     last_message = ""
+    tollerance = 0.01
+    args = [W.shape[0], W.shape[1], V.shape[0], V.shape[1], x_train, rho, y_train.reshape(-1,1) , N, True]
     while patience > 0:
+        prec_error = loss(omega, args)
         outer_iterations += 1
         wx = np.dot(W, x_train)
         G_train = g(wx)
         Q, C = quadratic_convex(G_train, V, y_train, len(y_train), rho)
         V_optimized = sc.linalg.lstsq(Q, C)[0]
         #### optimization wrt. W
-        args_W = [W.shape[0], W.shape[1], V_optimized.reshape(1,-1), x_train, rho, y_train.reshape(-1,1) , N, True]
+        args_W = [W.shape[0], W.shape[1], V_optimized.reshape(1,-1), x_train, rho, y_train.reshape(-1,1) , N, True]   
         optimizer = sc.optimize.minimize(loss_W, W, args=args_W, method="BFGS", jac=gradient_W, tol=0.0001, options={"maxiter":3000})
 
         # used for the output
@@ -52,21 +55,23 @@ def train(x_train, y_train, N, n, m, rho, seed):
         W_optimized = optimizer['x']
 
         omega_new = np.vstack([W_optimized.reshape(-1,1), V_optimized.reshape(-1,1)]) ## (200,1)
+        actual_error = loss(omega_new, args)
+        
         W = W_optimized.reshape(W.shape[0], W.shape[1])
         V = V_optimized.reshape(1,-1)
 
         diff_omega = np.linalg.norm(omega_new-omega)
         tolerance = 10e-3
-        if diff_omega < tolerance:
+        if diff_omega < tolerance and actual_error - prec_error <= tollerance :
             patience -= 1
         else:
             patience = 4
-        omega = omega_new
 
+        omega = omega_new
     end = time.time() - start_time
     # Final Train Error
     y_train_pred = feedforward(x_train, W, V)
-    args = [W.shape[0], W.shape[1], V.shape[0], V.shape[1], x_train, rho, y_train.reshape(-1,1) , N, True]
+    
     loss_train = loss(omega_new, args)
 
     return outer_iterations, y_train_pred, end, W, V, loss_train, total_nfev, total_njev, total_nit, last_message, optimizer, diff_omega

@@ -136,7 +136,7 @@ def CrossValidation(k, params):
         y_val = y[index_range[i]]
         args = [x_train, N, sigma, rho, y_train, C.shape[0], C.shape[1], V.shape[0], V.shape[1], True]
 
-        omega_opt = sc.optimize.minimize(loss, omega, args=args, method='BFGS', jac=gradient, tol=0.0001, options={"maxiter":3000})['x']
+        omega_opt = sc.optimize.minimize(loss, omega, args=args, method='BFGS', jac=gradient, tol=0.0001, options={"maxiter":1000})['x']
 
         new_C = omega_opt[: C.shape[0] * C.shape[1]].reshape(C.shape[0], C.shape[1])
         new_V = omega_opt[C.shape[0] * C.shape[1]: ].reshape(V.shape[0], V.shape[1])
